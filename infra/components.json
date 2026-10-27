@@ -1,0 +1,14 @@
+{
+  "scope": "local RAG infrastructure; application dependencies will be reviewed in their implementation steps",
+  "components": [
+    {"name": "PostgreSQL", "license": "PostgreSQL", "source": "https://www.postgresql.org/about/licence/"},
+    {"name": "pgvector", "image": "pgvector/pgvector:0.8.7-pg17-trixie", "license": "PostgreSQL", "source": "https://github.com/pgvector/pgvector/blob/master/LICENSE"},
+    {"name": "Valkey", "image": "valkey/valkey:9.1.2-alpine", "license": "BSD-3-Clause", "source": "https://github.com/valkey-io/valkey/blob/9.1.2/COPYING"},
+    {"name": "Apache Kafka", "image": "apache/kafka:4.1.2", "license": "Apache-2.0", "source": "https://github.com/apache/kafka/blob/4.1.2/LICENSE"},
+    {"name": "SeaweedFS", "image": "chrislusf/seaweedfs:4.50", "license": "Apache-2.0", "source": "https://github.com/seaweedfs/seaweedfs/blob/4.50/LICENSE"},
+    {"name": "Ollama", "image": "ollama/ollama:0.40.11", "license": "MIT", "source": "https://github.com/ollama/ollama/blob/v0.40.11/LICENSE"},
+    {"name": "Qwen3-4B", "model": "qwen3:4b", "license": "Apache-2.0", "source": "https://huggingface.co/Qwen/Qwen3-4B/blob/main/LICENSE", "download": "explicit make model command"}
+  ],
+  "review_limit": "Upstream project licenses checked; complete container SBOM and bundled third-party notices have not been audited.",
+  "deferred_until_after_core_rag": ["GROBID integration", "reference extraction and references persistence"]
+}

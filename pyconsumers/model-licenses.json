@@ -1,0 +1,44 @@
+{
+  "scope": "Local parsing and visual interpretation models; no cloud document inference",
+  "components": [
+    {
+      "name": "Docling layout Heron",
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/docling-project/docling-layout-heron"
+    },
+    {
+      "name": "Docling TableFormer",
+      "license": "CDLA-Permissive-2.0 / Apache-2.0 (see model card)",
+      "source": "https://huggingface.co/docling-project/docling-models"
+    },
+    {
+      "name": "RapidOCR / PaddleOCR-derived recognition models",
+      "license": "Apache-2.0",
+      "source": "https://github.com/RapidAI/RapidOCR"
+    },
+    {
+      "name": "Qwen3-VL 4B Instruct (Ollama Q4_K_M)",
+      "model": "qwen3-vl:4b-instruct",
+      "observed_model_id": "84f7ed8042fa",
+      "license": "Apache-2.0",
+      "source": "https://ollama.com/library/qwen3-vl:4b-instruct",
+      "upstream": "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct"
+    },
+    {
+      "name": "BGE-M3 dense embeddings",
+      "model": "BAAI/bge-m3",
+      "revision": "5617a9f61b028005a4858fdac845db406aefb181",
+      "license": "MIT",
+      "source": "https://huggingface.co/BAAI/bge-m3",
+      "files": "config, pytorch_model.bin, tokenizer only (no ONNX, ColBERT or sparse heads)"
+    }
+  ],
+  "observed_huggingface_revisions": {
+    "docling-project--docling-layout-heron": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8"
+  },
+  "limitations": [
+    "English OCR configured for PDF; other languages require configuration and evaluation.",
+    "DOCX page numbers are not inferred.",
+    "Visual interpretations are model-derived; unreadable labels and unsupported conclusions must remain explicit limitations."
+  ]
+}

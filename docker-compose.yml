@@ -1,0 +1,131 @@
+name: lexaior-rag
+
+# Local development only. Host ports bind to loopback; data lives in named volumes.
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lexaior_rag}
+      POSTGRES_USER: ${POSTGRES_USER:-lexaior}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 scripts/setup_env.py first}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/001-vector.sql:/docker-entrypoint-initdb.d/001-vector.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  valkey:
+    image: valkey/valkey:9.1.2-alpine
+    restart: unless-stopped
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?Run python3 scripts/setup_env.py first}
+    command:
+      - sh
+      - -ec
+      - 'exec valkey-server --appendonly yes --requirepass "$$VALKEY_PASSWORD"'
+    ports:
+      - "127.0.0.1:${VALKEY_PORT:-6380}:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: [CMD-SHELL, 'VALKEYCLI_AUTH="$$VALKEY_PASSWORD" valkey-cli ping | grep -qx PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  kafka:
+    image: apache/kafka:4.1.2
+    hostname: kafka
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${KAFKA_PORT:-9093}:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://127.0.0.1:${KAFKA_PORT:-9093}
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [CMD-SHELL, '/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --list >/dev/null 2>&1']
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  kafka-init:
+    image: apache/kafka:4.1.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: [/bin/bash, -ec]
+    command:
+      - |
+        for topic in doc.uploaded doc.parsed query.requested doc.uploaded.dlq doc.parsed.dlq query.requested.dlq \
+          STNDZ_TOPIC CSV_PARQUET_TOPIC RAG_MARKDOWN_TOPIC RAG_IMAGE_TOPIC METACLASSIFIER_TOPIC \
+          STNDZ_TOPIC_DLQ CSV_PARQUET_TOPIC_DLQ RAG_MARKDOWN_TOPIC_DLQ RAG_IMAGE_TOPIC_DLQ METACLASSIFIER_TOPIC_DLQ; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 \
+            --create --if-not-exists --topic "$$topic" --partitions 3 --replication-factor 1
+        done
+    restart: "no"
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.50
+    restart: unless-stopped
+    command: [mini, -dir=/data, -ip=seaweedfs, -ip.bind=0.0.0.0]
+    environment:
+      # S3 protocol variable names; these credentials belong to local SeaweedFS.
+      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY:?Run python3 scripts/setup_env.py first}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_KEY:?Run python3 scripts/setup_env.py first}
+      S3_BUCKET: ${STORAGE_BUCKET:-rag-documents}
+    ports:
+      - "127.0.0.1:${STORAGE_PORT:-8333}:8333"
+    volumes:
+      - seaweedfs_data:/data
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1:9333/cluster/status']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # On a Mac run Ollama natively (`brew services start ollama`): Docker cannot reach the Apple GPU, so here the
+  # model runs on CPU only. This service is for Linux hosts: `docker compose --profile ollama up -d`.
+  ollama:
+    image: ollama/ollama:0.40.11
+    profiles: [ollama]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: [CMD, ollama, list]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+
+volumes:
+  postgres_data:
+  valkey_data:
+  kafka_data:
+  seaweedfs_data:
+  ollama_data:
