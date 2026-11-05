@@ -64,7 +64,8 @@ async def main():
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for name in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(name, stop.set)
+        with suppress(NotImplementedError):  # Windows: Ctrl+C cancels main() instead; finally still runs
+            loop.add_signal_handler(name, stop.set)
     try:
         await stop.wait()
         logger.info('Shutdown requested; stopping workers.')
