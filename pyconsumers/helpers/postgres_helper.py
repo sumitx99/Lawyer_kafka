@@ -11,10 +11,12 @@ from .secrets_control import Settings, get_settings
 class Database:
     def __init__(self, settings: Settings | None = None):
         settings = settings or get_settings()
+        # The microservices migrations put every table in a private schema and pgvector in `extensions`.
+        search_path = {'search_path': f'"{settings.db_schema}", extensions, public'}
         self.engine = create_async_engine(settings.database_url, pool_pre_ping=True,
                                           pool_size=settings.db_pool_size,
                                           max_overflow=settings.db_max_overflow,
-                                          hide_parameters=True)
+                                          hide_parameters=True, connect_args={'server_settings': search_path})
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
     @asynccontextmanager
