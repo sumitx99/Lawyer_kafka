@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     postgres_host: str = '127.0.0.1'
     postgres_port: int = Field(default=5433, ge=1, le=65535)
     postgres_db: str = 'lexaior_rag'
+    db_schema: str = 'public'  # must match microservices DB_SCHEMA
     postgres_user: str = 'lexaior'
     postgres_password: SecretStr
     db_pool_size: int = Field(default=5, ge=1, le=50)
